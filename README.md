@@ -287,6 +287,21 @@ requests = Client(timeout=60, headers={"content-type": "application/json"})
 
 注：HTTP请求的更多介绍请阅读：[fastkit/httpx](https://git.woa.com/nops/framework/fastkit/tree/master/fastkit/httpx)
 
+### 任务调度
+
+基于 APScheduler 实现，已和框架绑定启动，可以实现快速在本地后台启动任务调度。
+
+```python
+from fastflyer import background_scheduler
+
+def customfunc():
+    print("hello world!")
+
+background_scheduler.add_job(func=customfunc, "interval", seconds=5, id="customjob")
+```
+
+`注：如果是随服务一起启动的任务，建议基于共享内存持久化键做下去重机制，否则FastAPI 多 worker 可能会存在多份任务调度。`
+
 ### 公共组件
 对于公共组件的对接，建议以类的方式将初始化写到项目的 settings.py，以下为示例代码：
 
