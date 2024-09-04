@@ -15,15 +15,13 @@ RUN sed -i 's/deb.debian.org/mirrors.cloud.tencent.com/' /etc/apt/sources.list.d
     locale-gen
 
 # 更新pip
-RUN pip3 install --upgrade pip \
-    --index-url https://mirrors.cloud.tencent.com/pypi/simple/
+RUN pip3 install --upgrade pip
 
 # 安装依赖插件
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install \
     --no-cache-dir \
-    -r /tmp/requirements.txt \
-    --index-url https://mirrors.cloud.tencent.com/pypi/simple/
+    -r /tmp/requirements.txt
 
 WORKDIR /fastflyer
 
@@ -39,11 +37,6 @@ ENV TZ=Asia/Shanghai \
     flyer_reload=1 
 
 COPY . .
-
-# # 调试fastkit插件
-# RUN pip uninstall fastkit -y && \
-#     pip install fastkit --no-cache-dir \
-#     --index-url https://mirrors.cloud.tencent.com/pypi/simple/
 
 RUN python setup.py install --single-version-externally-managed --record=installed_files.txt
 

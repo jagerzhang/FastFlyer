@@ -5,4 +5,4 @@ gunicorn>=21.2.0
 
 # fastflyer 相关插件（插件间接依赖未申明）
 httptools>=0.1.2,<=0.6.1
-fastkit>=0.1.1
+fastkit>=0.1.4

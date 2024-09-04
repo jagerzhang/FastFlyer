@@ -78,20 +78,17 @@ update() {
     print_message INFO "正在更新开发容器插件..."
     docker exec -ti "${project_name}" bash -c "
         pip3 install -r requirements.txt \
-        --index-url https://mirrors.cloud.tencent.com/pypi/simple/ \
-        --extra-index-url https://mirrors.tencent.com/repository/pypi/tencent_pypi/simple/
+        --index-url https://mirrors.cloud.tencent.com/pypi/simple/
     "
     docker exec -ti "${project_name}" bash -c "
         pip3 uninstall -y fastflyer &&
         pip3 install --upgrade fastflyer \
-        --index-url https://mirrors.cloud.tencent.com/pypi/simple/ \
-        --extra-index-url https://mirrors.tencent.com/repository/pypi/tencent_pypi/simple/
+        --index-url https://mirrors.cloud.tencent.com/pypi/simple/
     "
     print_message INFO "正在更新本地 FastFlyer 插件，以便 IDE 读取最新代码 ..."
     pip3 uninstall -y fastflyer 2>&1
     pip3 install --upgrade fastflyer \
-        --index-url https://mirrors.cloud.tencent.com/pypi/simple/ \
-        --extra-index-url https://mirrors.tencent.com/repository/pypi/tencent_pypi/simple/ 2>&1
+        --index-url https://mirrors.cloud.tencent.com/pypi/simple/  2>&1
     print_message INFO "更新完成！"
 }
 
@@ -127,12 +124,6 @@ start() {
         ${image} ./start-reload.sh
     
     print_message INFO "容器启动成功"
-    # print_message WARN "尝试安装项目自定义依赖..."
-    # docker exec -ti "${project_name}" bash -c "
-    #     pip3 install -r requirements.txt \
-    #     --index-url https://mirrors.cloud.tencent.com/pypi/simple/ \
-    #     --extra-index-url https://mirrors.tencent.com/repository/pypi/tencent_pypi/simple/
-    # "
     print_message INFO "开发环境启动成功！以下为执行日志，你可以按下 ctrl + c 退出日志查看"
     show_logs "${project_name}"
 }
