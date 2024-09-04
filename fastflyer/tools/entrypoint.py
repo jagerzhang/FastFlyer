@@ -62,7 +62,7 @@ def main():
         port = os.getenv("flyer_port", 8080)
         prefix = os.getenv("flyer_base_url", "/flyer")
         url = f"http://{get_host_ip()}:{port}{prefix}"
-        logger.info(f"欢迎启动体验项目，现在可以通过浏览器访问以下项目页面：")
+        logger.info("欢迎启动体验项目，现在可以通过浏览器访问以下项目页面：")
         logger.info(f"SwaggerUI 文档：{colored_cover(f'{url}/docs')}")
         logger.info(f"ReDoc 接口文档：{colored_cover(f'{url}/redoc')}")
         main_cmd()

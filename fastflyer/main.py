@@ -8,9 +8,9 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
-from apscheduler.schedulers.background import BackgroundScheduler
+from contextlib import asynccontextmanager
 from fastflyer.exceptions import init_exception
-from fastflyer import config
+from fastflyer import config, background_scheduler, asyncio_scheduler
 from fastflyer.docs import router as docs
 from fastflyer.authorize import authorize
 from fastkit.logging import get_logger
@@ -47,8 +47,7 @@ class FlyerAPI:
         cls.app.include_router(docs)
         # 自动加载子项目
         cls.load_module()
-        # 加载日志中间件
-        cls.bind_services()
+        # 初始化异常处理
         init_exception(cls.app)
         return cls.app
 
@@ -102,42 +101,49 @@ class FlyerAPI:
                 logger.error(f"子路由加载错误：{traceback.format_exc()}")
                 pass
 
-    @classmethod
-    def bind_services(cls):
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """生命周期管理
+    """
+
+    def on_startup():
+        """启动时执行逻辑
         """
-        把服务挂载到app对象上面
-        :param app:
-        :return:
+        max_threads = int(os.environ.get("flyer_threads", 5))
+        logger.info(f"The Number of Threads per Worker: {max_threads}")
+        loop = asyncio._get_running_loop()
+        loop.set_default_executor(ThreadPoolExecutor(max_workers=max_threads))
+
+        # 启动任务调度
+        if not background_scheduler.running:
+            logger.info("正在启动 Apscheduler 后台线程任务...")
+            background_scheduler.start()
+
+        # 启动异步任务调度
+        if not asyncio_scheduler.running:
+            logger.info("正在启动 Apscheduler 后台协程任务...")
+            asyncio_scheduler.start()
+
+    def on_shutdown():
+        """关闭时执行逻辑
         """
+        logger.warn("收到关闭信号，FastFlyer 开始执行优雅停止逻辑...")
+        # 关闭任务调度器
+        logger.info("正在关闭 Apscheduler 定时引擎...")
+        background_scheduler.shutdown(wait=True)
+        asyncio_scheduler.shutdown(wait=True)
+        # 等待一段时间再退出（最小1秒，最大60秒）
+        graceful_timeout = max(
+            min(int(os.getenv("flyer_graceful_timeout", 1)), 60), 1)
+        logger.warn(f"优雅停止逻辑执行完毕，FastFlyer 将在 {graceful_timeout}s 后自动退出...")
+        for i in range(0, graceful_timeout):
+            time.sleep(1)
+            logger.warn(f"退出倒计时：{graceful_timeout - i}s ...")
+        logger.warn("FastFlyer 已成功停止服务，感谢您的使用，再见！")
 
-        @cls.app.on_event("startup")
-        def set_default_executor():  # pylint: disable=unused-variable
-            max_threads = int(os.environ.get("flyer_threads", 5))
-            logger.info(f"The Number of Threads per Worker: {max_threads}")
-            loop = asyncio._get_running_loop()
-            loop.set_default_executor(
-                ThreadPoolExecutor(max_workers=max_threads))
-
-        @cls.app.on_event("startup")
-        def set_scheduler():  # pylint: disable=unused-variable
-            global SCHEDULER
-            SCHEDULER = BackgroundScheduler(timezone="Asia/Shanghai",
-                                            logger=logger)
-            SCHEDULER.start()
-            return SCHEDULER
-
-        @cls.app.on_event("shutdown")
-        def shutdown_scheduler():  # pylint: disable=unused-variable
-            logger.warn("收到关闭信号，FastFlyer 开始执行优雅停止逻辑...")
-            # 关闭任务调度器
-            logger.info("正在关闭 Apscheduler 定时引擎...")
-            SCHEDULER.shutdown()
-            # 等待一段时间再退出（最小1秒，最大60秒）
-            graceful_timeout = max(
-                min(int(os.getenv("flyer_graceful_timeout", 1)), 60), 1)
-            logger.warn(
-                f"优雅停止逻辑执行完毕，FastFlyer 将在 {graceful_timeout}s 后自动退出...")
-            for i in range(0, graceful_timeout):
-                time.sleep(1)
-                logger.warn(f"退出倒计时：{graceful_timeout - i}s ...")
-            logger.warn("FastFlyer 已成功停止服务，感谢您的使用，再见！")
+    try:
+        on_startup()
+        yield
+    finally:
+        on_shutdown()
