@@ -1,0 +1,5 @@
+include requirements.txt
+recursive-exclude fastflyer *.pyc
+recursive-exclude fastflyer *_pycache_*
+recursive-include fastflyer */logs/*
+recursive-include fastflyer *

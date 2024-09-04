@@ -1,0 +1,7 @@
+source:
+  third_party_source:
+    filepath_regex: [".*/.*\\.js", ".*/.*\\.css"]
+  auto_generate_source:
+    filepath_regex:
+  test_source:
+    filepath_regex: [".*/start*.sh", ".*/tests/.*"]

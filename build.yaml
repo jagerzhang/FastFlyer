@@ -1,0 +1,25 @@
+stages:
+  - stage:
+      - job:
+          resourceType: REMOTE
+          pool:
+            type: DockerOnDevCloud
+            container: mirrors.tencent.com/ci/tlinux_ci:0.2.0.4
+          steps:
+            - taskType: 'syncLocalCode@latest'
+              displayName: 同步代码到云端
+            - taskType: marketBuild@latest
+              displayName: 腾讯代码分析(最新)
+              inputs:
+                atomCode: CodeccCheckAtomDebug
+                version: 4.*
+                data:
+                  input:
+                    languages: # 工程语言, 必选, 可取值："C_CPP", "JAVA", "C_SHARP", "JS", "OC", "PYTHON", "PHP", "RUBY", "GOLANG", "SWIFT", "TYPESCRIPT", "KOTLIN", "LUA", "OTHERS"
+                      - "PYTHON"
+                    checkerSetType: "openScan" # 规则集类型，nomarl对应自主配置规则集，openScan对应按开源治理要求配置，epcScan对应按PCG EPC要求配置。选了openScan或epcScan则不需要填写后面的内容
+                    toolScanType: "1" # 扫描方式。0是全量扫描，1是增量扫描
+                  customPath: # 黑名单。设置后不扫描黑名单中路径。
+                    - "/static/swagger-ui-bundle.js"
+                    - "/static/redoc.standalone.js"
+                  scanTestSource: false # 对.code.yml中的test_source项依然进行代码规范检查
