@@ -11,11 +11,11 @@ from fastkit.logging import logger  # noqa
 from fastkit.httpx import status  # noqa
 from fastkit.httpx import Client  # noqa
 from fastkit.httpx import AsyncClient  # noqa
+from fastflyer.scheduler import background_scheduler, asyncio_scheduler  # noqa
 
 from .exceptions import ErrorResponse  # noqa
 from .main import FlyerAPI  # noqa
 from .router import APIRouter  # noqa
-from fastflyer.scheduler import background_scheduler, asyncio_scheduler  # noqa
 
 # HTTP 同步请求客户端
 client = requests = Client(**config.DEFAULT_REQUEST_RETRY_CONFIG)

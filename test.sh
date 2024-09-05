@@ -7,7 +7,7 @@ test -d dist && rm -r dist
 test -d *.egg-info && rm -r *.egg-info
 python3 setup.py clean
 
-docker build -f Dockerfile_dev -t fastflyer:dev .
+docker build -f Dockerfile_dev --build-arg BUILD_NO=$RANDOM -t fastflyer:dev .
 docker run \
     --rm -ti \
     --net host \

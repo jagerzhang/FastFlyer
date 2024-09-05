@@ -38,6 +38,14 @@ ENV TZ=Asia/Shanghai \
 
 COPY . .
 
+ARG BUILD_NO=1
+# 重新安装一次fastkit，以更新版本
+RUN echo $BUILD_NO >/dev/null && \
+    pip uninstall fastkit -y && \
+    pip install \
+    --no-cache-dir \
+    fastkit
+
 RUN python setup.py install --single-version-externally-managed --record=installed_files.txt
 
 CMD ["fastflyer", "show_demo"]

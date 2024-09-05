@@ -40,7 +40,8 @@ class FlyerAPI:
                           version=config.VERSION,
                           openapi_url=config.PREFIX + "/openapi.json",
                           docs_url=None,
-                          redoc_url=None)
+                          redoc_url=None,
+                          lifespan=lifespan)
         cls.app.mount(config.PREFIX + "/static",
                       StaticFiles(directory=static_dir),
                       name="static")
