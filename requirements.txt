@@ -1,8 +1,8 @@
 # fastapi 相关插件（插件间接依赖未申明）
-fastapi>=0.69.0,<=0.110.0
-uvicorn>=0.14.0,<=0.29.0 # Python 3.6 只能安装0.16.0 否则 报错 AttributeError: module 'asyncio' has no attribute 'run'
+fastapi>=0.69.0
+uvicorn>=0.14.0 # Python 3.6 只能安装0.16.0 否则 报错 AttributeError: module 'asyncio' has no attribute 'run'
 gunicorn>=21.2.0
 
 # fastflyer 相关插件（插件间接依赖未申明）
-httptools>=0.1.2,<=0.6.1
+httptools>=0.1.2
 fastkit>=0.1.11
