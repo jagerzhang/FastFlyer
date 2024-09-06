@@ -5,7 +5,7 @@
 from fastflyer import status
 from fastflyer.schemas import DataResponse
 from fastflyer import APIRouter
-from users.schemas.userinfo import UserCreateRequest
+from app.users.schemas.userinfo import UserCreateRequest
 
 router = APIRouter()
 
