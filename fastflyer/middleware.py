@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import re
 import time
 import json
 from uuid import uuid4
@@ -6,6 +7,7 @@ import resource
 from os import getenv
 from fastapi.routing import APIRoute
 from fastapi import Request, Response
+from opentelemetry import trace
 from fastflyer.utils import get_host_ip, get_client_ip
 from fastflyer import logger
 
@@ -21,13 +23,15 @@ class MiddleWare(APIRoute):
         """
         request_body = await request.body()
         request_body = bytes.decode(request_body)
-
+        # JSON 格式请求清洗下特殊符号
+        if request.headers.get("Content-Type").lower() == "application/json":
+            request_body = re.sub(r"\s+", "", request_body)
         return request_body
 
     async def _report_log(self, **kwargs):
         """上报智研，依赖 settings 初始化
         """
-        if int(getenv("flyer_access_log", 1)) == 0:
+        if int(getenv("flyer_access_log", "1")) == 0:
             return
 
         try:
@@ -39,7 +43,7 @@ class MiddleWare(APIRoute):
 
         try:
             # 优先支持日志汇字段结构化解析
-            logger.info(json.dumps(kwargs))
+            logger.json.info(kwargs)
         except Exception:  # pylint: disable=broad-except
             logger.warning(kwargs)
 
@@ -64,6 +68,14 @@ class MiddleWare(APIRoute):
             request.headers.__dict__["_list"].insert(
                 0, (b"x-request-id", request_id.encode()))
 
+            # opentelemetry 植入 x-request-id
+            try:
+                current_span = trace.get_current_span()
+                if current_span:
+                    current_span.set_attribute("http.request_id", request_id)
+            except Exception:  # pylint: disable=broad-except
+                pass
+
             response: Response = await original_route_handler(request)
 
             # 插入自定义头部
@@ -84,7 +96,8 @@ class MiddleWare(APIRoute):
                     "method": str(request.method),
                     "url": str(request.url),
                     "body": await self._get_request_body(request),
-                    "headers": dict(request.headers.items())
+                    "headers": dict(request.headers.items()),
+                    "params": dict(request.query_params)
                 },
                 "response": {
                     "status_code": response.status_code,

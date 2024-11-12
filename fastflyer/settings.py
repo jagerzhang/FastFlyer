@@ -25,7 +25,7 @@ class BaseConfig:
     # 本地日志目录
     LOG_PATH = getenv("flyer_log_path", "/var/log")
     # 本地日志格式
-    LOG_FORMAT = "%(color)s%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s:%(lineno)d %(end_color)s| %(message)s"
+    LOG_FORMAT = "%(asctime)s.%(msecs)03d | %(levelname)s | %(module)s:%(lineno)d | %(message)s"
     # 智研日志拓展字段，名称和logging的格式字段保持一致，支持已冒号的方式自定义别名，比如 dirname:business，则日志汇将展示 为 business
     ZHIYAN_LOG_EXT_FIELDS = ["location"]
 

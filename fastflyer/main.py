@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 import importlib
 import traceback
 import asyncio
@@ -9,9 +8,13 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from fastflyer.exceptions import init_exception
-from fastflyer import config, background_scheduler, asyncio_scheduler
-from fastflyer.docs import router as docs
+from fastflyer import (config, background_scheduler, asyncio_scheduler,
+                       threadpool, tracer)
+from fastflyer.trace import fastapi_client_request_hook, fastapi_client_response_hook, fastapi_server_request_hook
+from fastflyer.base.docs import router as docs_router
+from fastflyer.base.tasks import router as tasks_router
 from fastflyer.authorize import authorize
 from fastkit.logging import get_logger
 
@@ -21,13 +24,16 @@ logger = get_logger(logger_name="console", log_path=config.LOG_PATH)
 
 class FlyerAPI:
     _inst = None
+    middlewares = []
 
-    def __new__(cls, app_path):
+    def __new__(cls, app_path, middlewares: list = None):
         """
         规避重复加载
         """
         if cls._inst is None:
             cls.app_path = app_path
+            if middlewares is not None:
+                cls.middlewares = middlewares
             cls._inst = cls.create_app()
 
         return cls._inst
@@ -45,9 +51,26 @@ class FlyerAPI:
         cls.app.mount(config.PREFIX + "/static",
                       StaticFiles(directory=static_dir),
                       name="static")
-        cls.app.include_router(docs)
+
+        # 加载opentelemetry
+        if tracer:
+            FastAPIInstrumentor.instrument_app(
+                cls.app,
+                tracer_provider=tracer,
+                server_request_hook=fastapi_server_request_hook,
+                client_request_hook=fastapi_client_request_hook,
+                client_response_hook=fastapi_client_response_hook)
+
+        # 加载文档路由
+        cls.app.include_router(docs_router)
+
+        # 加载自定义中间件
+        for middleware in cls.middlewares:
+            cls.app.middleware("http")(middleware)
         # 自动加载子项目
         cls.load_module()
+        # 加载任务管理路由
+        cls.app.include_router(tasks_router)
         # 初始化异常处理
         init_exception(cls.app)
         return cls.app
@@ -68,26 +91,30 @@ class FlyerAPI:
         sys.path.append(root_path)
         os.chdir(root_path)
         # 自动加载有路由的包
-        for dir in Path(app_dir).iterdir():
+        for _dir in Path(app_dir).iterdir():
             # 不存在则跳过
-            if not dir.exists():
+            if not _dir.exists():
                 continue
 
             # 隐藏文件夹或申明非开放文件夹或不是文件夹的跳过
-            if dir.name.startswith("_") or dir.name.startswith(
-                    ".") or not dir.is_dir():
+            if _dir.name.startswith("_") or _dir.name.startswith(
+                    ".") or not _dir.is_dir():
                 continue
 
             try:
-                # eval(f"import {app_dir}.{dir.name}")
-                sub_module = importlib.import_module(f"{app_dir}.{dir.name}")
+                sub_module = importlib.import_module(f"{app_dir}.{_dir.name}")
                 # 尝试获取子模块是否启用，默认为True
                 sub_module_enabled = getattr(sub_module, "__ENABLED__", True)
                 if not sub_module_enabled:
                     continue
 
+                # 跳过无路由的模块
+                if not hasattr(sub_module, "router"):
+                    logger.info(f"后台子项目加载成功：{_dir.name}")
+                    continue
+
                 # 开启 BasicAuth 鉴权
-                if int(os.getenv("flyer_auth_enable", 0)) == 1:
+                if int(os.getenv("flyer_auth_enable", "0")) == 1:
                     cls.app.include_router(sub_module.router,
                                            prefix=f"{config.PREFIX}",
                                            dependencies=[Depends(authorize)])
@@ -96,10 +123,10 @@ class FlyerAPI:
                     cls.app.include_router(sub_module.router,
                                            prefix=f"{config.PREFIX}")
 
-                logger.info(f"子项目加载成功：{dir.name}")
+                logger.info(f"API子项目加载成功：{_dir.name}")
 
             except Exception:  # pylint: disable=broad-except
-                logger.error(f"子路由加载错误：{traceback.format_exc()}")
+                logger.error(f"API子路由加载错误：{traceback.format_exc()}")
                 pass
 
 
@@ -130,21 +157,18 @@ async def lifespan(app: FastAPI):
         """关闭时执行逻辑
         """
         logger.warn("收到关闭信号，FastFlyer 开始执行优雅停止逻辑...")
-        # 关闭任务调度器
-        logger.info("正在关闭 Apscheduler 定时引擎...")
-        background_scheduler.shutdown(wait=True)
-        asyncio_scheduler.shutdown(wait=True)
         # 等待一段时间再退出（最小1秒，最大60秒）
         graceful_timeout = max(
-            min(int(os.getenv("flyer_graceful_timeout", 1)), 60), 1)
-        logger.warn(f"优雅停止逻辑执行完毕，FastFlyer 将在 {graceful_timeout}s 后自动退出...")
-        for i in range(0, graceful_timeout):
-            time.sleep(1)
-            logger.warn(f"退出倒计时：{graceful_timeout - i}s ...")
-        logger.warn("FastFlyer 已成功停止服务，感谢您的使用，再见！")
+            min(int(os.getenv("flyer_graceful_timeout", "1")), 60), 1)
+        # 关闭任务调度器
+        logger.info("正在关闭 Apscheduler 定时引擎...")
+        background_scheduler.shutdown(wait=True, timeout=graceful_timeout)
+        asyncio_scheduler.shutdown(wait=True, timeout=graceful_timeout)
+        # 关闭线程池
+        logger.warning(f"正在关闭线程池，至多等待 {graceful_timeout}s ...")
+        threadpool.shutdown(wait=True, timeout=graceful_timeout)
+        logger.info("FastFlyer 已成功停止服务，感谢您的使用，再见！")
 
-    try:
-        on_startup()
-        yield
-    finally:
-        on_shutdown()
+    on_startup()
+    yield
+    on_shutdown()

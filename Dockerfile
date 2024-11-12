@@ -45,4 +45,4 @@ ENV TZ=Asia/Shanghai \
 
 EXPOSE 8080
 
-CMD ["fastflyer", "show_demo"]
+CMD ["fastflyer", "show", "openapi"]

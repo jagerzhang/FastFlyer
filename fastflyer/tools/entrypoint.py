@@ -1,3 +1,5 @@
+"""管理工具
+"""
 import os
 import sys
 import glob
@@ -6,8 +8,9 @@ import argparse
 from datetime import datetime
 import pkg_resources
 from fastkit.logging import get_logger
+from fastflyer import threadpool
 
-logger = get_logger(logger_name="console", log_path="/var/log")
+logger = get_logger(logger_name="console")
 COLOR_RED = "\033[91m"
 COLOR_GREEN = "\033[92m"
 COLOR_YELLOW = "\033[93m"
@@ -20,56 +23,89 @@ def colored_cover(message, color=COLOR_YELLOW):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="FastFlyer 框架开发辅助工具")
-    subparsers = parser.add_subparsers(dest="command")
-    create_app_parser = subparsers.add_parser("init_app", help="初始化应用代码")
-    subparsers.add_parser("show_demo", help="快速启动内置示例项目")
-    create_app_parser.add_argument("-f",
+    try:
+        parser = argparse.ArgumentParser(description="FastFlyer 框架开发辅助工具")
+        subparsers = parser.add_subparsers(dest="command")
+
+        # 修改为 create 命令
+        create_parser = subparsers.add_parser("create", help="创建应用代码")
+        create_parser.add_argument("type", choices=["openapi"], help="选择创建类型")
+        create_parser.add_argument("--name", help="指定API名称")
+        create_parser.add_argument("--prefix", help="指定API接口路径前缀，默认为 /flyer")
+        create_parser.add_argument("-f",
                                    "--force",
                                    action="store_true",
                                    help="强制覆盖已存在文件")
 
-    args = parser.parse_args()
+        # 修改为 show 命令
+        show_parser = subparsers.add_parser("show", help="显示相关信息")
+        show_subparsers = show_parser.add_subparsers(dest="show_command")
 
-    if args.command == "init_app":
-        # 检查是否已经初始化过，或者使用 -f 选项来强制重新创建
-        if os.path.exists(".init_lock") and not args.force:
-            logger.warn("项目已经被初始化过，请勿重复初始化")
+        show_subparsers.add_parser("openapi", help="快速启动 OpenAPI 示例项目")
+
+        args = parser.parse_args()
+
+        if args.command == "create":
+            if args.type in ["openapi"]:
+                if os.path.exists(".init_lock") and not args.force:
+                    logger.warn("项目已经被初始化过，请勿重复初始化")
+                else:
+                    template_dir = pkg_resources.resource_filename(
+                        __name__, f"template/{args.type}")
+                    copy_files(template_dir, ".", args.force)
+
+                    # 读取 --name 和 --prefix 参数
+                    name = args.name if args.name else "Flyer Demo"
+                    prefix = args.prefix if args.prefix else "/flyer"
+
+                    # 替换 settings.py 文件中的 API_TITLE 和 PREFIX
+                    settings_file = f"{template_dir}/settings.py"
+                    with open(settings_file, "r") as f:
+                        filedata = f.read()
+                    filedata = filedata.replace('API_TITLE = "Flyer Demo"',
+                                                f'API_TITLE = "{name}"')
+                    filedata = filedata.replace(
+                        'PREFIX = getenv("flyer_base_url", "/flyer")',
+                        f'PREFIX = getenv("flyer_base_url", "{prefix}")')
+                    with open(settings_file, "w") as f:
+                        f.write(filedata)
+
+                    if os.path.exists(".init_lock"):
+                        os.remove(".init_lock")
+                    with open(".init_lock", "w") as lock_file:
+                        lock_file.write(str(datetime.now()))
+                    logger.info(
+                        f"初始化完成，你可以执行 ls 命令查看目录内容或执行{colored_cover('./dev_ctrl.sh')}快速构建开发环境"
+                    )
+
+        elif args.command == "show":
+            if args.show_command == "openapi":
+                logger.info("尝试读取相关环境变量...")
+                for key, value in os.environ.items():
+                    if not key.startswith("flyer_"):
+                        continue
+                    logger.info(f"{key}={value}")
+
+                from fastflyer.tools.template.openapi.main import main_cmd
+                from fastflyer.utils import get_host_ip
+                port = os.getenv("flyer_port", "8080")
+                prefix = os.getenv("flyer_base_url", "/flyer")
+                url = f"http://{get_host_ip()}:{port}{prefix}"
+                logger.info("欢迎启动 FastFlyer OpenAPI 体验项目，现在可以通过浏览器访问以下项目页面：")
+                logger.info(f"SwaggerUI 文档：{colored_cover(f'{url}/docs')}")
+                logger.info(f"ReDoc 接口文档：{colored_cover(f'{url}/redoc')}")
+                main_cmd()
+
+            else:
+                parser.print_help()
+
         else:
-            # 获取 SDK 包内 demo 目录的路径
-            demo_dir = pkg_resources.resource_filename(__name__, "template")
-            # 拷贝 demo 目录下的文件到当前目录
-            copy_files(demo_dir, ".", args.force)
-            # 如果已经初始化过，删除 .init_lock 文件
-            if os.path.exists(".init_lock"):
-                os.remove(".init_lock")
-            # 创建并写入 .init_lock 文件
-            with open(".init_lock", "w") as lock_file:
-                lock_file.write(str(datetime.now()))
-            logger.info(
-                f"初始化完成，你可以执行 ls 命令查看目录内容或执行{colored_cover('./dev_ctrl.sh')}快速构建开发环境"
-            )
+            # 如果没有指定命令，则输出帮助信息
+            parser.print_help()
 
-    elif args.command == "show_demo":
-        logger.info("尝试读取相关环境变量...")
-        for key, value in os.environ.items():
-            if not key.startswith("flyer_"):
-                continue
-            logger.info(f"{key}={value}")
-
-        from fastflyer.tools.template.main import main_cmd
-        from fastflyer.utils import get_host_ip
-        port = os.getenv("flyer_port", 8080)
-        prefix = os.getenv("flyer_base_url", "/flyer")
-        url = f"http://{get_host_ip()}:{port}{prefix}"
-        logger.info("欢迎启动体验项目，现在可以通过浏览器访问以下项目页面：")
-        logger.info(f"SwaggerUI 文档：{colored_cover(f'{url}/docs')}")
-        logger.info(f"ReDoc 接口文档：{colored_cover(f'{url}/redoc')}")
-        main_cmd()
-
-    else:
-        # 如果没有指定命令，则输出帮助信息
-        parser.print_help()
+    finally:
+        # 在所有情况下都调用 shutdown
+        threadpool.shutdown(wait=False, show_log=False)
 
 
 def copy_files(source_dir, dest_dir, force=False):

@@ -67,13 +67,17 @@ docker run --rm -ti \
 .
 ├── app                            # 应用目录，FastFlyer 将自动加载本目录下符合框架规范的应用。
 │   ├── __init__.py                # 导入文件，将目录加入 PYTHOHPATH，用于缩短应用内部包导入，from items.module import xxxx
-│   ├── items                      # 演示应用1：项目管理，主要演示单个路由文件如何导入
+│   ├── items                      # 演示项目1：项目管理，主要演示单个路由文件如何导入
 │   │   ├── __init__.py            # 应用入口，这里必须导入路由对象：from .router import router ，注意最终对象必须为 router，框架仅支持加载名为 router 的路由实例对象
 │   │   ├── module.py              # 逻辑模块文件
 │   │   ├── README.md              # 应用自述文件
 │   │   ├── router.py              # 应用路由定义
 │   │   └── schema.py              # 应用输入输出参数定义
-│   └── users                      # 演示项目2：用户管理，主要演示多个路由文件如何聚合给框架加载
+│   ├── tasks                      # 演示项目2：演示后台线程、定时任务的调度管理
+│   │   ├── __init__.py            # 任务加载入口
+│       ├── README.md              # 应用自述文件
+│   │   └── module.py              # 后台任务代码
+│   └── users                      # 演示项目3：用户管理，主要演示多个路由文件如何聚合给框架加载
 │       ├── __init__.py            # 应用入口，这里必须导入路由对象：from .routers import router ，注意最终对象必须为 router，框架仅支持加载名为 router 的路由实例对象
 │       ├── modules                # 逻辑模块目录
 │       │   ├── __init__.py        # 包入口文件，必须存在
@@ -100,9 +104,6 @@ docker run --rm -ti \
 ├── start-reload.sh                # 开发环境启动脚本，基于uvicorn，支持热加载特性
 ├── start.sh                       # 生产环境启动脚本，基于gunicorn
 ├── ctrl.sh                       # 开发环境辅助脚本，仅支持Docker环境
-├── .gitignore                     # git忽略配置
-├── .dockerignore                  # docker构建忽略配置
-└── .code.yml                      # CodeCC 白名单配置
 ```
 
 ### 创建项目
@@ -289,29 +290,65 @@ requests = Client(timeout=60, headers={"content-type": "application/json"})
 
 ### 任务调度
 
-基于 APScheduler 实现，已和框架绑定启动，可以实现快速在本地后台启动任务调度。
+同时支持定时任务、后台线程任务，其中定时任务基于 APScheduler 实现。任务池已和框架绑定启动，可以实现快速在本地后台启动任务调度。
 
-#### 调度同步方法
+注：使用可以参考 [示例项目](https://git.woa.com/nops/framework/fastflyer/blob/master/fastflyer/tools/template/openapi/app/tasks)
+
+#### 定时调度同步方法
+
 ```python
 from fastflyer import background_scheduler
 
-@background_scheduler.lock() # 加入分布式锁机制，同一时刻只能运行一次，需要配置 redis 信息
 def customfunc():
     print("hello world!")
 
-background_scheduler.add_job(func=customfunc, "interval", seconds=5, id="customjob")
+# single_job 为 True 的时候将执行单实例单进程任务（需要设置redis配置，方能多实例/进程互斥）
+background_scheduler.add_job(func=customfunc, "interval", seconds=5, single_job=True)
 ```
 
-#### 调度异步方法
+#### 定时调度异步方法
+
 ```python
 from fastflyer import asyncio_scheduler
 
-@asyncio_scheduler.lock() # 加入分布式锁机制，同一时刻只能运行一次，需要配置 redis 信息
 async def customfunc():
     print("hello world!")
 
+# single_job 为 True 的时候将执行单实例单进程任务（需要设置redis配置，方能多实例/进程互斥）
 asyncio_scheduler.add_job(func=customfunc, "interval", seconds=5, id="customjob")
 ```
+
+#### 启动后台线程任务
+
+```python
+"""示例任务
+"""
+from fastflyer import logger, threadpool
+
+# 方式1：采用装饰器方式添加任务
+@threadpool.submit(single_job=True)  # single_job 为 True 的时候全局只会有一个任务执行，其他的将等待锁释放
+def hello_world_thread():
+    # 直到线程池停止才结束循环
+    while not threadpool.is_stopped():
+        logger.warning(f"hello world by threadpool every 5 senconds!")
+        # 内置可被中断的sleep，推荐使用
+        threadpool.sleep(5)
+
+
+# 方式2：显式提交任务方式
+threadpool.submit_task(hello_world_thread, single_job=True)
+```
+
+### Opentelemetry
+
+框架已内置支持 Opentelemetry 监控数据上报，请在启动前配置如下七彩石或环境变量即可：
+
+| **环境变量**                         | **是否必须** | **可选属性** | **默认值**                                              | **变量说明**                                                                               |
+| ------------------------------------ | ------------ | ------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **flyer_opentelemetry_enabled**      | 可选         | 0/1          | 0                                                       | 是否启用 Opentelemetry 监控，1为启用，0为禁用，默认为0，启用后需要配置相关变量方可正常试用 |
+| **flyer_opentelemetry_endpoint**     | 可选         | N/A          | http://otel-collect-proxy.zhiyan.tencent-cloud.net:4317 | Opentelemetry 上报地址，可以保持默认                                                       |
+| **flyer_opentelemetry_service_name** | 可选         | N/A          | /fastflyer                                              | Opentelemetry 上报的应用名称，默认为代码根目录 settings.py 设置的 APP_TITLE 的值           |
+| **flyer_opentelemetry_tenant_id**    | 可选         | N/A          | 无                                                      | Opentelemetry 租户ID或者token                                                              |
 
 ### 公共组件
 对于公共组件的对接，建议以类的方式将初始化写到项目的 settings.py，以下为示例代码：
@@ -486,7 +523,7 @@ class DemoClass:
 ```
 
 ## 环境变量
-FastFlyer 支持通过七彩石或环境变量来修改各种配置，`生效优先级：七彩石 > 环境变量`。
+FastFlyer 支持通过七彩石或环境变量来修改各种配置。
 
 ### 框架基础配置
  **环境变量**                             | **是否必须** | **可选属性**                                | **默认值**                  | **变量说明**                                    
@@ -510,42 +547,14 @@ FastFlyer 支持通过七彩石或环境变量来修改各种配置，`生效优
  **flyer_access_log**                 | 可选       | 1/0                                     | 1                        | 是否记录请求日志                                    
  **flyer_access_logfile**             | 可选       | N/A                                     | -                        | 定义Gunicorn请求日志文件的位置，适用于生产环境，默认输出到控制台      
 
-### 启用七彩石配置
-**注：七彩石中可以配置除以下配置之外的所有变量，生效优先级大于启动环境变量**
+### Opentelemetry 配置
 
- **环境变量**                             | **是否必须** | **可选属性**                                | **默认值**                  | **变量说明**                                    
---------------------------------------|----------|-----------------------------------------|--------------------------|---------------------------------------------
- **flyer_rainbow_enabled**            | 可选       | 0/1                                     | 0                        | 选择启用七彩石配置                                   
- **flyer_rainbow_host**               | 可选       | N/A                                     | api.rainbow.woa.com:8080 | 七彩石服务主机地址                                   
- **flyer_rainbow_app_id**             | 必须       | N/A                                     |                          | 七彩石应用ID                                     
- **flyer_rainbow_user_id**            | 必须       | N/A                                     |                          | 七彩石用户ID                                     
- **flyer_rainbow_secret_key**         | 必须       | N/A                                     |                          | 七彩石用户密钥                                     
- **flyer_rainbow_group_name**         | 必须       | N/A                                     |                          | 七彩石配置组名称                                    
- **flyer_rainbow_env_name**           | 必须       | N/A                                     |                          | 指定七彩石环境                                     
- **flyer_rainbow_sync_enabled**       | 可选       | 0/1                                     | 1                        | 启用七彩石配置自动同步                                 
- **flyer_rainbow_sync_interval**      | 可选       | ≥5                                      | 10                       | 七彩石配置自动同步的间隔                                
-
-### 启用北极星配置
-**需要启用`北极星`服务发现请添加如下配置：**
-
- **环境变量**                             | **是否必须** | **可选属性**                                | **默认值**                  | **变量说明**                                    
---------------------------------------|----------|-----------------------------------------|--------------------------|---------------------------------------------
- **flyer_polaris_enabled**            | 可选       | 1/0                                     | 0                        | 是否启用北极星                                     
- **flyer_polaris_namespace**          | 可选       | Development/Test/Pre-release/Production |                          | 指定北极星的命名空间                                  
- **flyer_polaris_service**            | 可选       | N/A                                     |                          | 指定北极星注册的服务名字                                
- **flyer_polaris_token**              | 可选       | N/A                                     |                          | 指定北极星服务名字对应的 token                          
- **flyer_polaris_heartbeat_interval** | 可选       | ≥5                                      | 5                        | 指定北极星心跳的间隔秒数                                
- **flyer_polaris_metadata_XXXXXXX**   | 可选       | N/A                                     |                          | 自定义北极星服务的 metadata 标签，XXXXXXX是标签名           
-
-
-### 启用日志汇配置
- **环境变量**                             | **是否必须** | **可选属性**                                | **默认值**                  | **变量说明**                                    
---------------------------------------|----------|-----------------------------------------|--------------------------|---------------------------------------------
- **flyer_zhiyan_log_enabled**         | 可选       | 1/0                                     | 0                        | 是否上报访问日志到智研                                 
- **flyer_zhiyan_log_topic**           | 可选       | N/A                                     |                          | 智研日志 Topic                                  
- **flyer_zhiyan_log_proto**           | 可选       | tcp/udp/dev                             |                          | 智研日志上报方式，dev指的是开发环境                         
- **flyer_zhiyan_my_ip**               | 可选       | N/A                                     |                          | 指定智研上报的本地IP地址，默认获取本机IP                      
-
+| **环境变量**                         | **是否必须** | **可选属性** | **默认值**                                              | **变量说明**                                                                               |
+| ------------------------------------ | ------------ | ------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **flyer_opentelemetry_enabled**      | 可选         | 0/1          | 0                                                       | 是否启用 Opentelemetry 监控，1为启用，0为禁用，默认为0，启用后需要配置相关变量方可正常试用 |
+| **flyer_opentelemetry_endpoint**     | 可选         | N/A          | http://otel-collect-proxy.zhiyan.tencent-cloud.net:4317 | Opentelemetry 上报地址                                                                     |
+| **flyer_opentelemetry_service_name** | 可选         | N/A          | /fastflyer                                              | Opentelemetry 上报的应用名称，默认为 fastflyer                                             |
+| **flyer_opentelemetry_tenant_id**    | 可选         | N/A          | 无                                                      | Opentelemetry 租户ID或者token   
 
 ## 返回码
 
