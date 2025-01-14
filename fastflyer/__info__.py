@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # SDK info
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 __package_name__ = "fastflyer"
 __title__ = "FastFlyer — 轻量级API开发框架"
 
