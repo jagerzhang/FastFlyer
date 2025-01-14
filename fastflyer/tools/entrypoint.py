@@ -1,5 +1,6 @@
 """管理工具
 """
+
 import os
 import sys
 import glob
@@ -32,10 +33,7 @@ def main():
         create_parser.add_argument("type", choices=["openapi"], help="选择创建类型")
         create_parser.add_argument("--name", help="指定API名称")
         create_parser.add_argument("--prefix", help="指定API接口路径前缀，默认为 /flyer")
-        create_parser.add_argument("-f",
-                                   "--force",
-                                   action="store_true",
-                                   help="强制覆盖已存在文件")
+        create_parser.add_argument("-f", "--force", action="store_true", help="强制覆盖已存在文件")
 
         # 修改为 show 命令
         show_parser = subparsers.add_parser("show", help="显示相关信息")
@@ -50,8 +48,7 @@ def main():
                 if os.path.exists(".init_lock") and not args.force:
                     logger.warn("项目已经被初始化过，请勿重复初始化")
                 else:
-                    template_dir = pkg_resources.resource_filename(
-                        __name__, f"template/{args.type}")
+                    template_dir = pkg_resources.resource_filename(__name__, f"template/{args.type}")
                     copy_files(template_dir, ".", args.force)
 
                     # 读取 --name 和 --prefix 参数
@@ -62,11 +59,10 @@ def main():
                     settings_file = f"{template_dir}/settings.py"
                     with open(settings_file, "r") as f:
                         filedata = f.read()
-                    filedata = filedata.replace('API_TITLE = "Flyer Demo"',
-                                                f'API_TITLE = "{name}"')
+                    filedata = filedata.replace('API_TITLE = "Flyer Demo"', f'API_TITLE = "{name}"')
                     filedata = filedata.replace(
-                        'PREFIX = getenv("flyer_base_url", "/flyer")',
-                        f'PREFIX = getenv("flyer_base_url", "{prefix}")')
+                        'PREFIX = getenv("flyer_base_url", "/flyer")', f'PREFIX = getenv("flyer_base_url", "{prefix}")'
+                    )
                     with open(settings_file, "w") as f:
                         f.write(filedata)
 
@@ -88,6 +84,7 @@ def main():
 
                 from fastflyer.tools.template.openapi.main import main_cmd
                 from fastflyer.utils import get_host_ip
+
                 port = os.getenv("flyer_port", "8080")
                 prefix = os.getenv("flyer_base_url", "/flyer")
                 url = f"http://{get_host_ip()}:{port}{prefix}"
@@ -119,8 +116,7 @@ def copy_files(source_dir, dest_dir, force=False):
             if dir == "__pycache__":
                 continue
             src_dir = os.path.join(root, dir)
-            dest_subdir = os.path.join(dest_dir,
-                                       os.path.relpath(src_dir, source_dir))
+            dest_subdir = os.path.join(dest_dir, os.path.relpath(src_dir, source_dir))
 
             is_copied = False
             for copied_dir in copied_files:
@@ -144,8 +140,7 @@ def copy_files(source_dir, dest_dir, force=False):
             if file.endswith((".pyc", ".log", ".lock")):
                 continue  # 排除后缀为 .pyc 和 .log 的文件
             src_file = os.path.join(root, file)
-            dest_file = os.path.join(dest_dir,
-                                     os.path.relpath(src_file, source_dir))
+            dest_file = os.path.join(dest_dir, os.path.relpath(src_file, source_dir))
 
             is_copied = False
             for copied_dir in copied_files:

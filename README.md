@@ -110,8 +110,8 @@ docker run --rm -ti \
 
 `注：Python要求3.6.8以上版本，推荐 Python 3.8以上版本，如果出现依赖报错，可以 case by case 解决。`
 
-#### 安装框架SDK
-我们在本地安装 FastFlyer 确保 IDE 能够正常提示.
+#### 【可选】安装框架SDK
+我们在本地安装 FastFlyer 确保 IDE 能够正常提示。
 
 ```shell
 # 安装或更新 fastflyer
@@ -123,30 +123,23 @@ pip3 install --upgrade fastflyer
 仅适用于从0开始的项目，`已有代码请忽略此步骤`。
 
 ```
-# 确定一个代码目录并进入
-cd /data/my_project/<new_project>
+# 定义项目名变量，方便后面命令行引用
+export new_project=myproject
+
+# 创建项目目录并进入。默认在 /data下，可以自行修改
+mkdir -p /data/${new_project}
+
+cd /data/${new_project}
 
 # 生成初始项目代码
-fastflyer create_app
+docker run --rm -v `pwd`:/fastflyer -ti jagerzhang/fastflyer:latest fastflyer create openapi --name=${new_project} --prefix=/${new_project}
 
-# 上传代码到既定代码库（请自行修改仓库地址，如果没有请自行前往工蜂自行）
+# 上传代码到既定代码库（请自行修改仓库地址）
 git init --initial-branch=master
-git remote add origin https://github.com/yourname/<new_project>.git
+git remote add origin https://github.com/yourname/${new_project}.git
 git add .
 git commit -m "Initial commit"
 git push --set-upstream origin master
-
-# 创建个人开发分支
-git checkout feature/xxxxxx
-```
-
-#### 克隆已有项目
-如果是已有项目代码，请直接克隆，并切换到所需要的开发分支即可：
-```
-cd /data/my_project
-git clone https://github.com/yourname/<new_project>.git
-cd <new_project>
-git checkout feature/xxxxxx
 ```
 
 ### 基于Docker搭建开发环境
@@ -191,14 +184,39 @@ cd /data/my_project/<new_project>
 `注：框架内建功能将持续更新。`
 
 ### 获取变量
+
+变量获取有以下两种方式，方式一采用对象的方式获取，更加简洁，但是更依赖框架，方式二采用原生`os.getenv`的方式获取，不依赖框架。
+
+#### 方式一、框架内置对象方式获取
+
+```python
+from fastflyer import env
+
+# 框架提供的变量获取有以下 4 种方式，业务可以自行根据喜好选择：
+
+# 类 os.getenv 方式
+custom_env_name = env.get("custom_env_name", "default_value")
+
+# 对象获取变量方式1：表达式配置默认值
+custom_env_name = env.custom_env_name or "default_value"
+
+# 对象获取变量方式2：item 方式配置默认值
+custom_env_name = env.custom_env_name["default_value"]
+
+# 对象获取变量方式3：传参方式配置默认值
+custom_env_name = env.custom_env_name("default_value")
+
+print(f"custom_env_name：{custom_env_name}")
+```
+
+
+#### 方式二、原生内置插件方式获取
 ```python
 from os import getenv
-from fastflyer import logger
 
 custom_env_name = getenv("custom_env_name", "default_value")
-logger.info(f"custom_env_name：{custom_env_name}")
+print(f"custom_env_name：{custom_env_name}")
 ```
-`注：框架会将七彩石变量注入到环境变量中，因此可以用 getenv 获取。在启用定时同步后，这个方法能实时获取到七彩石最新配置。`
 
 ### 日志打印
 ```python
@@ -214,6 +232,31 @@ logger.error("ERROR级别")
 import json
 logger.info(json.dumps({"field": "123"}))
 ```
+
+### 本地缓存
+
+注：本地缓存只要用于一些仅需要加速的场景，如果涉及分布式请移步下文的 `Redis` 缓存。
+
+```python
+import time
+from fastkit.cache import get_cacheout_pool
+
+# 类 redis 用法举例：缓存键值对120秒
+cache = get_cacheout_pool(cache_name="custom")
+cache.set("a", 1, 120)
+a = cache.get("a")
+
+# 装饰器用法举例：函数返回结果缓存120s
+# 若不设置 cache_key, 将自动生成，生成逻辑为：
+# key = f"{func.__module__}.{func.__name__}:{args}:{kwargs}"
+# f"{func.__module__}.{func.__name__}:{get_md5(key)}"
+@cache.cache_result(cache_key="foo_result", ttl=120)
+def foo():
+    # 缓存后，再次执行函数将直接返回bar，不会感知 time.sleep 阻塞耗时
+    time.sleep(5)
+    return "bar"
+```
+
 
 ### HTTP请求
 框架基于`httpx`和`tenacity`分别封装了同步和异步请求，集成了失败重试和日志记录（支持日志汇）等机制，推荐使用。
