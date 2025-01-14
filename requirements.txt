@@ -5,7 +5,7 @@ gunicorn>=21.2.0
 
 # fastflyer 相关插件（插件间接依赖未申明）
 httptools>=0.1.2
-fastkit>=0.1.12
+fastkit>=0.1.15
 
 
 # opentelemetry 相关插件
