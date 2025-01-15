@@ -10,8 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from fastflyer.exceptions import init_exception
-from fastflyer import (config, background_scheduler, asyncio_scheduler,
-                       threadpool, tracer)
+from fastflyer import config, background_scheduler, asyncio_scheduler, threadpool, tracer
 from fastflyer.trace import fastapi_client_request_hook, fastapi_client_response_hook, fastapi_server_request_hook
 from fastflyer.base.docs import router as docs_router
 from fastflyer.base.tasks import router as tasks_router
@@ -41,16 +40,16 @@ class FlyerAPI:
     @classmethod
     def create_app(cls):
         """创建应用"""
-        cls.app = FastAPI(title=config.API_TITLE,
-                          description=config.DESCRIPTION,
-                          version=config.VERSION,
-                          openapi_url=config.PREFIX + "/openapi.json",
-                          docs_url=None,
-                          redoc_url=None,
-                          lifespan=lifespan)
-        cls.app.mount(config.PREFIX + "/static",
-                      StaticFiles(directory=static_dir),
-                      name="static")
+        cls.app = FastAPI(
+            title=config.API_TITLE,
+            description=config.DESCRIPTION,
+            version=config.VERSION,
+            openapi_url=config.PREFIX + "/openapi.json",
+            docs_url=None,
+            redoc_url=None,
+            lifespan=lifespan,
+        )
+        cls.app.mount(config.PREFIX + "/static", StaticFiles(directory=static_dir), name="static")
 
         # 加载opentelemetry
         if tracer:
@@ -59,7 +58,8 @@ class FlyerAPI:
                 tracer_provider=tracer,
                 server_request_hook=fastapi_server_request_hook,
                 client_request_hook=fastapi_client_request_hook,
-                client_response_hook=fastapi_client_response_hook)
+                client_response_hook=fastapi_client_response_hook,
+            )
 
         # 加载文档路由
         cls.app.include_router(docs_router)
@@ -74,6 +74,25 @@ class FlyerAPI:
         # 初始化异常处理
         init_exception(cls.app)
         return cls.app
+
+    @classmethod
+    def check_auth_path(cls, router) -> bool:
+        """检查是否需要鉴权"""
+        if not router:
+            return True
+
+        flyer_no_auth_path_prefixs = os.getenv("flyer_no_auth_path_prefixs")
+        if not flyer_no_auth_path_prefixs:
+            return True
+
+        white_list = {prefix.replace(config.PREFIX, "") for prefix in flyer_no_auth_path_prefixs.split(",")}
+        for r in router.routes:
+            path = getattr(r, "path")
+            # 检查路径是否以任意白名单前缀开头
+            if any(path.startswith(prefix) for prefix in white_list):
+                return False
+
+        return True
 
     @classmethod
     def load_module(cls):
@@ -97,8 +116,7 @@ class FlyerAPI:
                 continue
 
             # 隐藏文件夹或申明非开放文件夹或不是文件夹的跳过
-            if _dir.name.startswith("_") or _dir.name.startswith(
-                    ".") or not _dir.is_dir():
+            if _dir.name.startswith("_") or _dir.name.startswith(".") or not _dir.is_dir():
                 continue
 
             try:
@@ -114,14 +132,13 @@ class FlyerAPI:
                     continue
 
                 # 开启 BasicAuth 鉴权
-                if int(os.getenv("flyer_auth_enable", "0")) == 1:
-                    cls.app.include_router(sub_module.router,
-                                           prefix=f"{config.PREFIX}",
-                                           dependencies=[Depends(authorize)])
+                if int(os.getenv("flyer_auth_enable", "0")) == 1 and cls.check_auth_path(sub_module.router):
+                    cls.app.include_router(
+                        sub_module.router, prefix=f"{config.PREFIX}", dependencies=[Depends(authorize)]
+                    )
 
                 else:
-                    cls.app.include_router(sub_module.router,
-                                           prefix=f"{config.PREFIX}")
+                    cls.app.include_router(sub_module.router, prefix=f"{config.PREFIX}")
 
                 logger.info(f"API子项目加载成功：{_dir.name}")
 
@@ -132,12 +149,10 @@ class FlyerAPI:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """生命周期管理
-    """
+    """生命周期管理"""
 
     def on_startup():
-        """启动时执行逻辑
-        """
+        """启动时执行逻辑"""
         max_threads = int(os.environ.get("flyer_threads", 5))
         logger.info(f"The Number of Threads per Worker: {max_threads}")
         loop = asyncio._get_running_loop()
@@ -154,12 +169,10 @@ async def lifespan(app: FastAPI):
             asyncio_scheduler.start()
 
     def on_shutdown():
-        """关闭时执行逻辑
-        """
+        """关闭时执行逻辑"""
         logger.warn("收到关闭信号，FastFlyer 开始执行优雅停止逻辑...")
         # 等待一段时间再退出（最小1秒，最大60秒）
-        graceful_timeout = max(
-            min(int(os.getenv("flyer_graceful_timeout", "1")), 60), 1)
+        graceful_timeout = max(min(int(os.getenv("flyer_graceful_timeout", "1")), 60), 1)
         # 关闭任务调度器
         logger.info("正在关闭 Apscheduler 定时引擎...")
         background_scheduler.shutdown(wait=True, timeout=graceful_timeout)

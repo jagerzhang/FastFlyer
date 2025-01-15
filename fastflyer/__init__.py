@@ -7,6 +7,7 @@ try:
 except ImportError:
     from fastflyer.settings import BaseConfig as config
 
+from fastkit.utils.environ import EnvObject
 from fastkit.logging import logger  # noqa
 
 # httpx 的opentelemetry 需要提前加
@@ -23,9 +24,10 @@ from .exceptions import ErrorResponse  # noqa
 from .main import FlyerAPI  # noqa
 from .router import APIRouter  # noqa
 
+# 环境变量对象
+env = EnvObject()
+
 # HTTP 同步请求客户端
-client = requests = Client(logger=logger,
-                           **config.DEFAULT_REQUEST_RETRY_CONFIG)
+client = requests = Client(logger=logger, **config.DEFAULT_REQUEST_RETRY_CONFIG)
 # HTTP 异步请求客户端
-aioclient = aiorequests = AsyncClient(logger=logger,
-                                      **config.DEFAULT_REQUEST_RETRY_CONFIG)
+aioclient = aiorequests = AsyncClient(logger=logger, **config.DEFAULT_REQUEST_RETRY_CONFIG)

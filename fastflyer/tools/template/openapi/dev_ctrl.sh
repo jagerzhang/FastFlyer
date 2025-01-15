@@ -78,17 +78,17 @@ update() {
     print_message INFO "正在更新开发容器插件..."
     docker exec -ti "${project_name}" bash -c "
         pip3 install -r requirements.txt \
-        --index-url https://mirrors.cloud.tencent.com/pypi/simple/
+        --index-url https://pypi.tuna.tsinghua.edu.cn/simple/
     "
     docker exec -ti "${project_name}" bash -c "
-        pip3 uninstall -y fastflyer &&
-        pip3 install --upgrade fastflyer \
-        --index-url https://mirrors.cloud.tencent.com/pypi/simple/
+        pip3 uninstall -y fastflyer fastkit &&
+        pip3 install --upgrade fastflyer fastkit \
+        --index-url https://pypi.tuna.tsinghua.edu.cn/simple/
     "
-    print_message INFO "正在更新本地 FastFlyer 插件，以便 IDE 读取最新代码 ..."
-    pip3 uninstall -y fastflyer 2>&1
-    pip3 install --upgrade fastflyer \
-        --index-url https://mirrors.cloud.tencent.com/pypi/simple/  2>&1
+    # print_message INFO "正在更新本地 FastFlyer 插件，以便 IDE 读取最新代码 ..."
+    # pip3 uninstall -y fastflyer 2>&1
+    # pip3 install --upgrade fastflyer \
+    #     --index-url https://pypi.tuna.tsinghua.edu.cn/simple/  2>&1
     print_message INFO "更新完成！"
 }
 
