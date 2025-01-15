@@ -26,7 +26,7 @@ RUN pip install \
 # 安装 FastFlyer
 ARG BUILD_NO=1
 RUN echo $BUILD_NO >/dev/null && \
-    pip install \
+    pip install --upgrade \
     --no-cache-dir \
     fastflyer
 
