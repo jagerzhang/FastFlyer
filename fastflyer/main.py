@@ -76,25 +76,6 @@ class FlyerAPI:
         return cls.app
 
     @classmethod
-    def check_auth_path(cls, router) -> bool:
-        """检查是否需要鉴权"""
-        if not router:
-            return True
-
-        flyer_no_auth_path_prefixs = os.getenv("flyer_no_auth_path_prefixs")
-        if not flyer_no_auth_path_prefixs:
-            return True
-
-        white_list = {prefix.replace(config.PREFIX, "") for prefix in flyer_no_auth_path_prefixs.split(",")}
-        for r in router.routes:
-            path = getattr(r, "path")
-            # 检查路径是否以任意白名单前缀开头
-            if any(path.startswith(prefix) for prefix in white_list):
-                return False
-
-        return True
-
-    @classmethod
     def load_module(cls):
         """
         加载子项目
@@ -132,7 +113,7 @@ class FlyerAPI:
                     continue
 
                 # 开启 BasicAuth 鉴权
-                if int(os.getenv("flyer_auth_enable", "0")) == 1 and cls.check_auth_path(sub_module.router):
+                if int(os.getenv("flyer_auth_enable", "0")) == 1 and getattr(sub_module, "__AUTH_ENABLED__", True):
                     cls.app.include_router(
                         sub_module.router, prefix=f"{config.PREFIX}", dependencies=[Depends(authorize)]
                     )
