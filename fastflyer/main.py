@@ -62,11 +62,7 @@ class FlyerAPI:
             )
 
         # 加载文档路由
-        if int(os.getenv("flyer_auth_enable", "0")) == 1:
-            cls.app.include_router(docs_router, dependencies=[Depends(authorize)])
-
-        else:
-            cls.app.include_router(docs_router)
+        cls.app.include_router(docs_router)
 
         # 加载自定义中间件
         for middleware in cls.middlewares:
