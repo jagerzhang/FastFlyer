@@ -50,7 +50,11 @@ class FlyerAPI:
             lifespan=lifespan,
         )
         cls.app.mount(config.PREFIX + "/static", StaticFiles(directory=static_dir), name="static")
-
+        # 应用的静态文件
+        if os.path.exists(f"{cls.app_path}/../static"):
+            cls.app.mount(
+                config.PREFIX + "/app/static", StaticFiles(directory=f"{cls.app_path}/../static"), name="app-static"
+            )
         # 加载opentelemetry
         if tracer:
             FastAPIInstrumentor.instrument_app(
