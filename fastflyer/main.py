@@ -62,15 +62,26 @@ class FlyerAPI:
             )
 
         # 加载文档路由
-        cls.app.include_router(docs_router)
+        if int(os.getenv("flyer_auth_enable", "0")) == 1:
+            cls.app.include_router(docs_router, dependencies=[Depends(authorize)])
+
+        else:
+            cls.app.include_router(docs_router)
 
         # 加载自定义中间件
         for middleware in cls.middlewares:
             cls.app.middleware("http")(middleware)
+
         # 自动加载子项目
         cls.load_module()
+
         # 加载任务管理路由
-        cls.app.include_router(tasks_router)
+        if int(os.getenv("flyer_auth_enable", "0")) == 1:
+            cls.app.include_router(tasks_router, dependencies=[Depends(authorize)])
+
+        else:
+            cls.app.include_router(tasks_router)
+
         # 初始化异常处理
         init_exception(cls.app)
         return cls.app
