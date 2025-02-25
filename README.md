@@ -422,55 +422,33 @@ Cache.redis_pool.get("a")
 
 ##### SQLAlchemy
 
-```python
-# 在 项目 settings.py 初始化 DataBase
-from fastflyer.database import get_mysql_pool
+```py
+from fastkit.database import MySQL
 
+# 初始化mysql连接对象
+mysql_pool = MySQL(
+    db_host, 
+    db_port,
+    db_database,
+    db_user,
+    db_pass,
+    db_charset
+)
 
-class DataBase:
-    # 如果启用 MySQL 请取消注释
-    db_user = getenv("flyer_db_user", "root")
-    db_pass = getenv("flyer_db_pass", "")
-    db_host = getenv("flyer_db_host", "localhost")
-    db_port = getenv("flyer_db_port", 3306)
-    db_name = getenv("flyer_db_name", "flyer")
-    db_chartset = getenv("flyer_db_chartset", "utf8")
-    db_recycle_rate = int(getenv("flyer_db_recycle_rate", 900))
-    db_pool_size = int(getenv("flyer_db_pool_size", 32))
-    db_max_overflow = int(getenv("flyer_threads", 64))
-    mysql_pool = get_mysql_pool(db_user, db_pass, db_host, db_port,
-                                     db_name, db_recycle_rate, db_pool_size,
-                                     db_max_overflow)
+# 获取session连接对象
+session = mysql_pool.get_session()
 
-# db_tables.py 定义表结构 
-# -*- coding: utf-8 -*-
-from sqlalchemy import Column, String, Integer, Text, Boolean
-from sqlalchemy.ext.declarative import declarative_base
+# 获取table对象
+table = mysql_pool.get_table(table_name)
 
-Base = declarative_base()
+# 可以进行相关的ORM操作，示例如下
+data = session.query(table.c.id, table.c.name).filter(table.c.city == "shenzhen").all()
 
+# 回收session会话
+session.close()
 
-class UserCallBackInfo(Base):
-    """ 获取用户登记的回调信息
-    """
-    __tablename__ = "t_table_name" # 自定义表名
-    id = Column(Integer, primary_key=True, index=True)
-    string_field = Column(String(64),
-                     nullable=False,
-                     unique=True,
-                     index=True,
-                     comment="字符串字段")
-    int_field = Column(Integer,
-                       nullable=False,
-                       default=0,
-                       comment="整型字段")
-    bool_filed = Column(Boolean(), default=True, comment="Bool类型字段")
-    comment = Column(Text, nullable=False, comment="Text类型字段")
-    # 其他请查询手册
-
-    def to_dict(self):
-        return {c.name: getattr(self, c.name)
-                for c in self.__table__.columns}
+# 关闭所有的链接，关闭连接池
+mysql_pool.close(session)
 ```
 
 ##### DataSet
