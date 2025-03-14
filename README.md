@@ -1,6 +1,8 @@
 ## FastFlyer: 轻量级 API 开发框架
 ![License](fastflyer/static/License-icon.svg)
 ![Verison](fastflyer/static/Python-3.6.8+-icon.svg)
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fjagerzhang%2FFastFlyer&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
+                
 
 ## 项目介绍
 FastFlyer 是基于 FastAPI 设计的轻量级 API 开发框架，是[Flyer](https://github.com/jagerzhang/flyer)的迭代升级版本。该框架全面升级为 SDK 即装即用方式，和业务代码隔离，再无框架版本难以更新维护问题。同时内置了业务项目初始化生成等辅助工具，让研发人员只需专注于业务逻辑的实现，实现真正的开箱即用体验。
