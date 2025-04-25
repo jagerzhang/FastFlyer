@@ -79,6 +79,8 @@ jobs:
   docker-multiarch:
     runs-on: ubuntu-latest
     # needs: pypi-publish  # 依赖PyPI发布完成
+    environment:
+      name: Actions
     steps:
       - uses: actions/checkout@v4
       
