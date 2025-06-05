@@ -388,7 +388,7 @@ threadpool.submit_task(hello_world_thread, single_job=True)
 | **环境变量**                         | **是否必须** | **可选属性** | **默认值**                                              | **变量说明**                                                                               |
 | ------------------------------------ | ------------ | ------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | **flyer_opentelemetry_enabled**      | 可选         | 0/1          | 0                                                       | 是否启用 Opentelemetry 监控，1为启用，0为禁用，默认为0，启用后需要配置相关变量方可正常试用 |
-| **flyer_opentelemetry_endpoint**     | 可选         | N/A          | http://otel-collect-proxy.zhiyan.tencent-cloud.net:4317 | Opentelemetry 上报地址，可以保持默认                                                       |
+| **flyer_opentelemetry_endpoint**     | 可选         | N/A          | 无 | Opentelemetry 上报地址                                                       |
 | **flyer_opentelemetry_service_name** | 可选         | N/A          | /fastflyer                                              | Opentelemetry 上报的应用名称，默认为代码根目录 settings.py 设置的 APP_TITLE 的值           |
 | **flyer_opentelemetry_tenant_id**    | 可选         | N/A          | 无                                                      | Opentelemetry 租户ID或者token                                                              |
 
