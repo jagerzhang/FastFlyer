@@ -34,13 +34,13 @@ def config_mcp(app: FlyerAPI, mount_path="/mcp", mount_kwargs: dict = None, **kw
 
     if mcp_enabled:
         logger.info(f"已启用 MCP 服务，挂载路径为 {mount_path}")
+        mount_kwargs = mount_kwargs or {}
         mcp = FastApiMCP(
             app,
-            include_tags=mcp_exclude_tags,
+            include_tags=mcp_include_tags,
             exclude_tags=mcp_exclude_tags,
             include_operations=mcp_include_operations,
             exclude_operations=mcp_exclude_operations,
-            mcp_exclude_operations=mcp_exclude_operations,
             **kwargs,
         )
         mcp.mount(mount_path=mount_path, **mount_kwargs)
