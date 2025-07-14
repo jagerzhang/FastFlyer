@@ -392,6 +392,18 @@ threadpool.submit_task(hello_world_thread, single_job=True)
 | **flyer_opentelemetry_service_name** | 可选         | N/A          | /fastflyer                                              | Opentelemetry 上报的应用名称，默认为代码根目录 settings.py 设置的 APP_TITLE 的值           |
 | **flyer_opentelemetry_tenant_id**    | 可选         | N/A          | 无                                                      | Opentelemetry 租户ID或者token                                                              |
 
+### MCP 配置
+
+| **环境变量**                         | **是否必须** | **可选属性** | **默认值**                                              | **变量说明**                                                                               |
+| ------------------------------------ | ------------ | ------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **flyer_mcp_enabled**      | 可选         | 0/1          | 0                                                       | 是否启用MCP服务，默认为 0 不启用 |
+| **flyer_mcp_include_tags**     | 可选         | N/A          | None | 按接口Tags指定暴露给MCP的接口，多个以英文逗号分隔                                                                    |
+| **flyer_mcp_exclude_tags** | 可选         | N/A          | None                                              | 按 Tags 从 MCP 屏蔽指定标签接口，多个以英文逗号分隔                                        |
+| **flyer_mcp_include_operations**    | 可选         | N/A          | None                                                      | 指定暴露给MCP的接口ID（可以通过查看redoc获取），多个以英文逗号分隔   
+| **flyer_mcp_exclude_operations**    | 可选         | N/A          | None                                                      | 指定从MCP屏蔽的接口ID（可以通过查看redoc获取），多个以英文逗号分隔 ｜
+
+`注：更多参数定义可以通过修改工程代码根目的 main.py`
+
 ### 公共组件
 对于公共组件的对接，建议以类的方式将初始化写到项目的 settings.py，以下为示例代码：
 
