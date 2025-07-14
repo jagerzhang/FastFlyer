@@ -2,10 +2,13 @@
 from os import getenv, path
 import uvicorn
 from fastflyer import FlyerAPI
+from fastflyer.mcp import config_mcp
+from settings import CustomConfig
 
 root_path = path.dirname(path.abspath(__file__))
 app_path = f"{root_path}/app"
 app = FlyerAPI(app_path=app_path)
+config_mcp(app, mount_path=f"{CustomConfig.PREFIX}/mcp")
 
 
 def main():
