@@ -577,7 +577,8 @@ FastFlyer 支持通过七彩石或环境变量来修改各种配置。
  **flyer_console_log_level**          | 可选       | debug/info/warn/error                   | info                     | 定义控制台日志级别                                   
  **flyer_file_log_level**             | 可选       | debug/info/warn/error                   | info                     | 定义日志文件的日志级别                                 
  **flyer_access_log**                 | 可选       | 1/0                                     | 1                        | 是否记录请求日志                                    
- **flyer_access_logfile**             | 可选       | N/A                                     | -                        | 定义Gunicorn请求日志文件的位置，适用于生产环境，默认输出到控制台      
+ **flyer_access_logfile**             | 可选       | N/A                                     | -                        | 定义Gunicorn请求日志文件的位置，适用于生产环境，默认输出到控制台          |
+ | **flyer_access_log_exclude_uris** | 可选         | N/A                   | 不设置默认屏蔽 /health_check请求  | 指定不记录请求日志的uris，多个以逗号分隔              |
 
 ### Opentelemetry 配置
 

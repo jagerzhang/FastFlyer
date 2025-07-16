@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from fastflyer.middleware import AccessLogFilterMiddleware
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from fastflyer.exceptions import init_exception
 from fastflyer import config, background_scheduler, asyncio_scheduler, threadpool, tracer
@@ -71,6 +72,15 @@ class FlyerAPI:
         # 加载自定义中间件
         for middleware in cls.middlewares:
             cls.app.middleware("http")(middleware)
+
+        # 屏蔽指定uri日志
+        cls.app.add_middleware(
+            AccessLogFilterMiddleware,
+            exclude_paths=[
+                "/health_check",
+                f"{config.PREFIX}/health_check",
+            ],
+        )
 
         # 自动加载子项目
         cls.load_module()

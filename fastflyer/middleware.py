@@ -2,6 +2,7 @@
 import re
 import time
 import json
+import logging
 from uuid import uuid4
 import resource
 from os import getenv
@@ -20,6 +21,8 @@ max_params_log_length = int(getenv("flyer_max_params_log_length", "2048"))
 max_headers_log_length = int(getenv("flyer_max_headers_log_length", "2048"))
 # 自动识别为json而无需传递content-type（如果默认，则客户端无需传递这个头部，否则必须传入才认为是JSON请求）
 accept_json_without_content_type = int(getenv("flyer_accept_json_without_content_type", "0"))
+# 排除日志上报的uri
+exclude_uris = str(getenv("flyer_access_log_exclude_uris", "")).split(",")
 
 
 class MiddleWare(APIRoute):
@@ -47,7 +50,12 @@ class MiddleWare(APIRoute):
         memory_usage: int,
     ):
         """打印日志"""
+        # 支持关闭日志
         if int(getenv("flyer_access_log", "1")) == 0:
+            return
+        
+        # 支持指定不记录日志的uri
+        if any(request.url.path.startswith(uri) for uri in exclude_uris):
             return
 
         request_body = request_body or await self._get_request_body(request)
@@ -152,3 +160,39 @@ class MiddleWare(APIRoute):
             return response
 
         return recorder
+
+
+class AccessLogFilterMiddleware:
+    def __init__(self, app, exclude_paths=None):
+        self.app = app
+        self.logger = logging.getLogger("uvicorn.access")
+        self.exclude_uris = exclude_paths or exclude_uris
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+        path = request.url.path
+
+        # Skip logging for excluded paths
+        if any(path.startswith(exclude_path) for exclude_path in self.exclude_uris):
+            # Temporarily disable the uvicorn access logger
+            self.logger.disabled = True
+
+            # Create a custom send function that skips logging
+            async def send_no_log(message):
+                if message["type"] == "http.response.start":
+                    scope["status_code"] = message["status"]
+                await send(message)
+
+            try:
+                await self.app(scope, receive, send_no_log)
+            finally:
+                # Re-enable the logger after processing the request
+                self.logger.disabled = False
+            return
+
+        # Normal processing with logging
+        await self.app(scope, receive, send)
