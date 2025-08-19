@@ -19,3 +19,6 @@ opentelemetry-instrumentation-kafka-python
 opentelemetry-instrumentation-pymysql
 opentelemetry-instrumentation-sqlalchemy
 opentelemetry-instrumentation-threading
+
+# mcp 支持
+fastapi-mcp
